@@ -1,0 +1,8 @@
+.vs
+boost
+build
+build_docker
+out
+zeroc.openssl
+openssl
+lexbor
