@@ -63,6 +63,7 @@ namespace bank_app{
         std::string host, port = "443", currentIp;
         std::unique_ptr<bank_app::CookieJar> cookieJarPtr;
         std::unique_ptr<bank_app::HttpClient> httpClientPtr;
+        std::chrono::time_point<std::chrono::system_clock> lastActionTimestamp;
         std::chrono::time_point<std::chrono::system_clock> loginTimestamp;
     public:
         virtual bool login(std::string username, std::string password) = 0;

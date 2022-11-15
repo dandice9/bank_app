@@ -14,9 +14,8 @@ int main() {
     const unsigned short port = 80;
     const std::string defaultSeparator = ";;";
 
-    auto bcaInst = std::make_unique<bank_app::BcaBank>(*clientIoc);
+    std::unordered_map<std::string, std::shared_ptr<bank_app::BcaBank>> bcaInsts;
     auto serv = std::make_unique<bank_app::HttpServer>(*serverIoc, port);
-
 
     serv->setEvent("/ping", [&](std::string payload) -> std::string {
         return "ok";
@@ -24,38 +23,83 @@ int main() {
 
     serv->setEvent("/login", [&](std::string payload) -> std::string {
         auto cred = bank_app::Utility::split(payload, defaultSeparator);
-        std::string loginResult = "0";
+        std::string loginResult = "-1";
 
         if (cred->size() == 2) {
             auto& credobj = *cred;
-            loginResult = bcaInst->login(credobj[0], credobj[1]) ? "1" : "0";
+            auto bcaInst = std::make_shared< bank_app::BcaBank>(*clientIoc);
+            loginResult = bcaInst->login(credobj[0], credobj[1]) ? "1" : loginResult;
+
+            if (loginResult == "1") {
+                auto uuid = uuidGen->get();
+                bcaInsts.insert({uuid, bcaInst });
+            }
         }
 
         return loginResult;
     });
 
     serv->setEvent("/balance", [&](std::string payload) -> std::string {
-        return bcaInst->getBalance();
+
+        if (bcaInsts.contains(payload)) {
+            auto bcaInst = bcaInsts[payload];
+            return bcaInst->getBalance();
+        }
+
+        return "-1";
     });
 
 
     serv->setEvent("/statement", [&](std::string payload) -> std::string {
         auto dateRanges = bank_app::Utility::split(payload, defaultSeparator);
 
-        if (dateRanges->size() == 2) {
+        if (dateRanges->size() == 3) {
             auto& dr = *dateRanges;
-            auto statements = bcaInst->getStatements(dr[0], dr[1]);
 
-            return bank_app::Utility::join(*statements, defaultSeparator);
+            if (bcaInsts.contains(dr[0])) {
+                auto bcaInst = bcaInsts[dr[0]];
+                auto statements = bcaInst->getStatements(dr[1], dr[2]);
+
+                return bank_app::Utility::join(*statements, defaultSeparator);
+            }
         }
 
         return "0";
     });
 
-    serv->setEvent("/logout", [&](std::string payload) -> std::string {
-        auto logoutResult = bcaInst->logout();
+    serv->setEvent("/transfer_form", [&](std::string payload) -> std::string {
+        std::string defaultRes = "-1";
 
-        return logoutResult ? "1" : "0";
+        if (bcaInsts.contains(payload)) {
+            auto bcaInst = bcaInsts[payload];
+            auto tf = bcaInst->getTransferForm();
+            std::vector<std::string> valueList;
+
+            for (const auto& dest : tf->destinationList) {
+                valueList.push_back(dest.first + ":" + dest.second);
+            }
+
+            return tf->randomCode + defaultSeparator + tf->sourceAccount + defaultSeparator + bank_app::Utility::join(valueList, defaultSeparator);
+        }
+
+        return defaultRes;
+    });
+
+    serv->setEvent("/transfer_action", [&](std::string payload) -> std::string {
+
+    });
+
+    serv->setEvent("/logout", [&](std::string payload) -> std::string {
+        std::string defaultRes = "-1";
+
+        if (bcaInsts.contains(payload)) {
+            auto bcaInst = bcaInsts[payload];
+            auto logoutResult = bcaInst->logout();
+
+            return logoutResult ? "1" : defaultRes;
+        }
+
+        return defaultRes;
     });
 	
 	std::cout << "Server Running at port: " << port << std::endl;

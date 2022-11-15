@@ -30,6 +30,8 @@ namespace bank_app{
     class BcaBank : public BaseBank{
         // private properties
         const std::string _bcaEscapeToken = "&=_.+";
+        net::io_context& ioc_;
+        std::string username_, password_;
 
         // private methods
         std::string _getUrl(std::string path){
@@ -57,7 +59,7 @@ namespace bank_app{
             return bank_app::HttpClient::UrlEncode(result, _bcaEscapeToken);
         }
     public:
-        BcaBank(net::io_context& ioc){
+        BcaBank(net::io_context& ioc) : ioc_(ioc){
             _generateIp();
 
             host = "m.klikbca.com";
@@ -65,6 +67,11 @@ namespace bank_app{
             httpClientPtr = std::make_unique<bank_app::HttpClient>(ioc, host, port, cookieJarPtr.get());
 
             httpClientPtr->get("/")->fillCookie();
+        }
+
+        void relogin() {
+            logout();
+            login(username_, password_);
         }
 
         bool login(std::string username, std::string password) override {
@@ -96,6 +103,9 @@ namespace bank_app{
 
             if(loginStatus){
                 loginTimestamp = std::chrono::system_clock::now();
+
+                username_ = username;
+                password_ = password;
             }
 
             return loginStatus;
