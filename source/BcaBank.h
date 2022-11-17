@@ -68,9 +68,12 @@ namespace bank_app{
 
             httpClientPtr->get("/")->fillCookie();
         }
+        ~BcaBank() {
+            httpClientPtr->closeConnection();
+        }
 
         void relogin() {
-            logout();
+            httpClientPtr->openConnection();
             login(username_, password_);
         }
 
@@ -115,7 +118,7 @@ namespace bank_app{
             auto currentTimestamp = std::chrono::system_clock::now();
             auto timeDiff = std::chrono::duration_cast<std::chrono::minutes>(currentTimestamp - loginTimestamp);
 
-            return timeDiff.count() >= 10;
+            return timeDiff.count() >= 5;
         }
 
         bool logout() override {
@@ -126,8 +129,7 @@ namespace bank_app{
                 httpClientPtr->prepareRequest(logoutUrl, http::verb::get)
                         ->setHeader(http::field::cookie, cookieJarPtr->toString())
                         ->setHeader(http::field::referer, refererUrl)
-                        ->send()
-                        ->closeConnection();
+                        ->send();
 
                 return true;
             }
@@ -139,6 +141,9 @@ namespace bank_app{
         }
 
         std::shared_ptr<std::vector<std::string>> getStatements(std::string start, std::string end) override {
+            if (isLoginTimeout())
+                relogin();
+
             time_t startTimeParam = std::stoll(start) / 1000, endTimeParam = std::stoll(end) / 1000;
             auto startt = *std::localtime(&startTimeParam);
             auto endt = *std::localtime(&endTimeParam);
@@ -173,6 +178,9 @@ namespace bank_app{
         }
 
         std::shared_ptr<BcaTransferForm> getTransferForm(){
+            if (isLoginTimeout())
+                relogin();
+
             auto response = httpClientPtr->post(getBCAPath(BANK_PATHS::TRANSFER_FORM))->response();
             auto responseHtml = boost::beast::buffers_to_string(response->body().data());
 
@@ -269,6 +277,9 @@ namespace bank_app{
         }
 
         std::string getBalance() override {
+            if (isLoginTimeout())
+                relogin();
+
             auto refererUrl = std::string(getBCAPath(BANK_PATHS::MENU_PATH));
             auto balanceInquiryUrl = std::string(getBCAPath(BANK_PATHS::BALANCE_INQUIRY));
             lxb_char_t cssNeedle[] = "td[align='right'] b";

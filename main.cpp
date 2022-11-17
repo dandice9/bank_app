@@ -33,6 +33,8 @@ int main() {
             if (loginResult == "1") {
                 auto uuid = uuidGen->get();
                 bcaInsts.insert({uuid, bcaInst });
+
+                loginResult = uuid;
             }
         }
 
@@ -64,7 +66,7 @@ int main() {
             }
         }
 
-        return "0";
+        return "-1";
     });
 
     serv->setEvent("/transfer_form", [&](std::string payload) -> std::string {
@@ -87,6 +89,8 @@ int main() {
 
     serv->setEvent("/transfer_action", [&](std::string payload) -> std::string {
 
+
+        return "-1";
     });
 
     serv->setEvent("/logout", [&](std::string payload) -> std::string {
@@ -95,6 +99,8 @@ int main() {
         if (bcaInsts.contains(payload)) {
             auto bcaInst = bcaInsts[payload];
             auto logoutResult = bcaInst->logout();
+
+            bcaInsts.erase(payload);
 
             return logoutResult ? "1" : defaultRes;
         }
