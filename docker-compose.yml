@@ -1,0 +1,6 @@
+version: "3.9"
+services:
+  bank-app:
+    image: "dandice/bank_app_prod"
+    ports:
+      - "80:80"

@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+
+kind: Deployment
+
+metadata:
+  name: bank-app-deploy
+  
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      name: bank-app
+  template:
+    metadata:
+      labels:
+        name: bank-app
+    spec:
+      imagePullSecrets:
+        - name: bacred
+      containers:
+        - name: bank-app-prod
+          image: dandice/bank_app_prod:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 80
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: bank-app-service
+  
+spec:
+  ports:
+    - name: http
+      port: 80
+      protocol: TCP
+      targetPort: 80
+
+  selector:
+    name: bank-app

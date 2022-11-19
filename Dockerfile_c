@@ -1,0 +1,7 @@
+from cpp-debian
+
+WORKDIR /app
+COPY ./build_docker/bank_app ./bank_app
+CMD ["./bank_app"]
+  
+EXPOSE 80

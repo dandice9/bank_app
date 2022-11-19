@@ -27,7 +27,7 @@ int main() {
 
         if (cred->size() == 2) {
             auto& credobj = *cred;
-            auto bcaInst = std::make_shared< bank_app::BcaBank>(*clientIoc);
+            auto bcaInst = std::make_shared<bank_app::BcaBank>(*clientIoc);
             loginResult = bcaInst->login(credobj[0], credobj[1]) ? "1" : loginResult;
 
             if (loginResult == "1") {
@@ -88,9 +88,33 @@ int main() {
     });
 
     serv->setEvent("/transfer_action", [&](std::string payload) -> std::string {
+        std::string defaultRes = "-1";
+        bank_app::BcaTransferData tfData;
+        auto payloads = bank_app::Utility::split(payload, defaultSeparator);
+        auto& transferPayloads = *payloads;
 
+        if (bcaInsts.contains(transferPayloads[0])) {
+            auto bcaInst = bcaInsts[transferPayloads[0]];
 
-        return "-1";
+            tfData.sourceAccount = transferPayloads[1];
+
+            tfData.destinationAccount = transferPayloads[2];
+            tfData.destinationAccountName = transferPayloads[3];
+
+            tfData.amount = std::stoi(transferPayloads[4]);
+
+            tfData.notes1 = transferPayloads[5];
+            tfData.notes2 = transferPayloads[6];
+
+            tfData.appli1 = transferPayloads[7];
+            tfData.appli2 = transferPayloads[8];
+
+            const bool transferResult = bcaInst->transferFund(tfData);
+
+            return transferResult ? "1" : defaultRes;
+        }
+
+        return defaultRes;
     });
 
     serv->setEvent("/logout", [&](std::string payload) -> std::string {

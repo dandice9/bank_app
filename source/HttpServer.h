@@ -270,7 +270,6 @@ namespace bank_app{
                 return send(std::move(res));
             }
 
-            // Respond to GET request
             http::response<http::string_body> res{
                     std::piecewise_construct,
                     std::make_tuple(std::move(body)),
@@ -278,6 +277,7 @@ namespace bank_app{
 
             res.set(http::field::server, BOOST_BEAST_VERSION_STRING);
             res.set(http::field::content_type, responseType);
+            res.set(http::field::access_control_allow_origin, "*");
             res.content_length(size);
             res.keep_alive(req.keep_alive());
 

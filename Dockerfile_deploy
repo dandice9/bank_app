@@ -1,0 +1,11 @@
+from debian:bookworm
+
+RUN apt update -y && apt upgrade -y \
+	&& apt install -y build-essential cmake openssl libssl-dev
+
+WORKDIR /app
+COPY . .
+RUN cmake . && make
+CMD ["./bank_app"]
+  
+EXPOSE 80

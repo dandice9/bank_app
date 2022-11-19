@@ -29,7 +29,7 @@ namespace bank_app{
 
     class BcaBank : public BaseBank{
         // private properties
-        const std::string _bcaEscapeToken = "&=_.+";
+        const std::string _bcaEscapeToken;
         net::io_context& ioc_;
         std::string username_, password_;
 
@@ -59,7 +59,7 @@ namespace bank_app{
             return bank_app::HttpClient::UrlEncode(result, _bcaEscapeToken);
         }
     public:
-        BcaBank(net::io_context& ioc) : ioc_(ioc){
+        BcaBank(net::io_context& ioc) : ioc_(ioc), _bcaEscapeToken("&=_.+"){
             _generateIp();
 
             host = "m.klikbca.com";
@@ -172,9 +172,27 @@ namespace bank_app{
 
             lxb_char_t trNeedle[] = "table[width=\"100%\"][class=\"blue\"]:not([border]) tr[bgcolor]";
             auto htmlParser = std::make_unique<HtmlParser>(lxbFromString(responseHtml));
+            auto searchNodesResult = htmlParser->css(trNeedle);
 
-            auto resultList = htmlParser->css(trNeedle)->toArrayStdString();
-            return resultList;
+            auto resultNodes = htmlParser->toArray();
+            auto finalResult = std::make_shared<std::vector<std::string>>();
+
+            const std::string elmSeparator = "|";
+
+            for (auto node : resultNodes)
+            {
+                auto fc = node->first_child;
+                auto sc = fc->next;
+                auto lc = sc->next;
+
+                auto trLine = bank_app::lxbGetInnerHtml(fc) + elmSeparator +
+                    bank_app::lxbGetInnerHtml(sc) + elmSeparator +
+                    bank_app::lxbGetInnerHtml(lc);
+
+                finalResult->push_back(trLine);
+            }
+
+            return finalResult;
         }
 
         std::shared_ptr<BcaTransferForm> getTransferForm(){
@@ -262,11 +280,24 @@ namespace bank_app{
                         ->setPayload(firstPayload)
                         ->send()->response();
 
+                auto pageStr1 = boost::beast::buffers_to_string(response1->body().data());
+                const std::string errMessageNeedle = "ANGKA YANG ANDA MASUKKAN DARI KEYBCA ANDA SALAH.";
+
+                if (pageStr1.find(errMessageNeedle) != std::string::npos) {
+                    return false;
+                }
+
                 auto response2 = httpClientPtr->prepareRequest(transferUrl, http::verb::post)
                         ->setHeader(http::field::cookie, cookieJarPtr->toString())
                         ->setHeader(http::field::referer, transferUrl)
                         ->setPayload(secondPayload)
                         ->send()->response();
+
+                auto pageStr2 = boost::beast::buffers_to_string(response2->body().data());
+
+                if (pageStr2.find(errMessageNeedle) != std::string::npos) {
+                    return false;
+                }
 
                 return true;
             }
